@@ -50,11 +50,11 @@ def load_and_filter(path):
     df = df[df[SMILES_COL].apply(lambda s: Chem.MolFromSmiles(str(s)) is not None)]
 
     for col in [KI_COL, IC50_COL, KD_COL, EC50_COL]:
-        if col is not None and col in df.columns:
+        if col in df.columns:
             df[col + '_nM'] = df[col].apply(parse_affinity)
 
     priority = [c + '_nM' for c in [KI_COL, KD_COL, IC50_COL, EC50_COL]
-                if c is not None and c + '_nM' in df.columns]
+                if c + '_nM' in df.columns]
 
     def assign_label(row):
         for col in priority:
