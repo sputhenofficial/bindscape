@@ -1,0 +1,23 @@
+# raw data
+data/BindingDB_All.tsv
+data/BindingDB_All.tsv.zip
+
+# dataframe caches
+data/bindingdb_filtered.pkl
+data/bindingdb_scaffold.pkl
+
+# generated caches
+cache/
+
+# fitted models
+models/
+
+# python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.DS_Store
+
+# project instructions / internal files
+CLAUDE.md
+review_prompt.md
