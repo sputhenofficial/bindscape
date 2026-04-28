@@ -112,7 +112,7 @@ AUROC values in this table depend on the negative sampling strategy. Affinity-th
 | | |
 |:---:|:---:|
 | ![Chemical space UMAP](figures/fig1_chemical_space_umap.png) | ![Protein embedding UMAP](figures/fig2_protein_umap.png) |
-| **Fig 1.** Chemical space UMAP over Morgan fingerprints of 10k subsampled drugs (cosine metric). Non-binders (red) are sparse at 4.43:1 class ratio and mostly invisible at this scale. The tight clustering reflects the narrow chemical diversity of BindingDB's kinase inhibitor collection: measured compounds are concentrated in ATP-competitive scaffold classes that occupy the same region of chemical space. | **Fig 2.** ESM2 embedding UMAP over all 487 kinase targets with valid sequences, colored by subfamily. ESM2 partially separates kinase families despite being trained on general protein sequences. |
+| **Fig 1.** Chemical space UMAP over Morgan fingerprints, balanced 1:1 binder:non-binder for visualization (~3,680 points; binders downsampled to match the non-binder count from a 10k random subsample; cosine metric). Binders (blue) and non-binders (red) overlap throughout chemical space with no separation. This is consistent with affinity-threshold negative sampling: measured non-binders are drawn from the same ATP-competitive scaffold classes as binders and differ in binding affinity, not gross structural class. | **Fig 2.** ESM2 embedding UMAP over all 487 kinase targets with valid sequences, colored by subfamily. ESM2 partially separates kinase families despite being trained on general protein sequences. |
 
 ![ROC and PR curves](figures/fig3_roc_pr_curves.png)
 
