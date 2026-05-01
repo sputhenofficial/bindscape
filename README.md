@@ -1,6 +1,14 @@
 # bindscape: Drug-Target Interaction Prediction from Sequence Representations
 
-Can a machine learning model predict whether a small molecule binds a protein target using only amino acid sequence and chemical structure, with no 3D structure, no docking, and no experimental data beyond binding affinity labels? This project tests that question on the most clinically relevant protein family in existence: human kinases. Each sample is a (drug, protein) pair. Drug → Morgan circular fingerprint (2048-bit, radius 2). Protein → ESM2 mean-pool embedding (`facebook/esm2_t30_150M_UR50D`, 640-dim). Label → 1 if Ki/IC50/Kd ≤ 1000 nM (binder), 0 if > 10,000 nM (non-binder); the ambiguous 1–10 μM band is dropped. On a random split, random forest with both representations achieves AUROC 0.982; logistic regression reaches 0.922. On 97 kinase targets withheld entirely from training, those numbers drop to 0.781 and 0.775. That is still the number that matters.
+Can a machine learning model predict whether a small molecule binds a protein target using only amino acid sequence and chemical structure, with no 3D structure, no docking, and no experimental data beyond binding affinity labels? This project tests that question on the most clinically relevant protein family in existence: human kinases. Each sample is a (drug, protein) pair. Drug → Morgan circular fingerprint (2048-bit, radius 2). Protein → ESM2 mean-pool embedding (`facebook/esm2_t30_150M_UR50D`, 640-dim). Label → 1 if Ki/IC50/Kd ≤ 1000 nM (binder), 0 if > 10,000 nM (non-binder); the ambiguous 1–10 μM band is dropped. On a random split, random forest with both representations achieves AUROC 0.982; logistic regression reaches 0.922. On 97 kinase targets withheld entirely from training, those numbers drop to 0.781 and 0.775 — and dropping the protein embedding entirely pushes RF back up to 0.828. The fingerprint transfers; the protein representation does not. That is still the number that matters.
+
+---
+
+## Research arc
+
+Project 1 (`antibody-sequence-landscape`) asked whether ESM2 encodes species-level biological structure in VH antibody sequences. The answer was yes. This project asks the functional follow-up: does ESM2 mean-pool encode binding specificity well enough to contribute to drug-target interaction prediction on kinases?
+
+Mean-pool is used here deliberately, not because it outperformed CLS in project 1 (it did not), but because the question is whether it carries functional signal at all when paired with a 4x larger model. The evaluation philosophy carries over: report point estimates under honest splits, not just the optimistic number.
 
 ---
 
@@ -16,11 +24,11 @@ Can a machine learning model predict whether a small molecule binds a protein ta
 
 ## Biological context
 
-**Kinase inhibitors and drug discovery.** A kinase is an enzyme that transfers a phosphate group to a substrate protein, acting as the on/off switch of cell signaling. When kinase activity is dysregulated, it drives cancer, inflammation, and metabolic disease; over 70 FDA-approved kinase inhibitor drugs exist as of 2024. In early drug discovery, computational virtual screening filters chemical libraries before any wet-lab assay. Predicting binding from sequence alone, no structure, no docking, is the most direct test of what a sequence model actually knows.
+A kinase is an enzyme that transfers a phosphate group to a substrate protein, acting as the on/off switch of cell signaling. When kinase activity is dysregulated, it drives cancer, inflammation, and metabolic disease, and over 70 FDA-approved kinase inhibitor drugs exist as of 2024. In early drug discovery, computational virtual screening filters chemical libraries before any wet-lab assay. Predicting binding from sequence alone, with no 3D structure and no docking simulation, is the most direct test of what a sequence model actually encodes.
 
-**Why kinases specifically.** Kinases are the most drug-targeted and most data-rich protein family in BindingDB. Their distinct subfamily structure (tyrosine kinases, serine/threonine kinases, receptor tyrosine kinases) lets us measure whether the model generalizes uniformly or overperforms on whichever subfamily dominates the training data.
+Kinases are the most drug-targeted and most data-rich protein family in BindingDB. Their distinct subfamily structure (tyrosine kinases, serine/threonine kinases, receptor tyrosine kinases) lets us measure whether the model generalizes uniformly or overperforms on whichever subfamily dominates the training data.
 
-**Affinity thresholds.** Ki, IC50, and Kd all measure binding but are not interchangeable. When a pair has measurements from multiple assay types, the most thermodynamically reliable is used (Ki > Kd > IC50 > EC50). The 1 μM threshold for binary classification is standard: below it, binding is considered meaningful; above 10 μM, it is functionally irrelevant in most contexts.
+Ki, IC50, and Kd all measure binding but are not interchangeable. When a pair has measurements from multiple assay types, the most thermodynamically reliable is used (Ki > Kd > IC50 > EC50). The 1 μM threshold for binary classification is standard: below it, binding is considered meaningful; above 10 μM, it is functionally irrelevant in most contexts.
 
 ---
 
@@ -73,20 +81,24 @@ AUROC (area under the ROC curve) measures whether the model ranks true binders a
 
 ![LR and RF fp_esm AUROC across evaluation splits](figures/fig6_split_comparison.png)
 
+<!-- results-table-start -->
 | Model | Features | Split | AUROC | AUPRC | F1 |
 |---|---|---|---|---|---|
-| **LR** | **fp_esm** | **held-out target** | **0.775** | **0.922** | **0.884** |
-| **RF** | **fp_esm** | **held-out target** | **0.781** | **0.924** | **0.813** |
-| LR | fp_esm | scaffold | 0.856 | 0.954 | 0.920 |
-| RF | fp_esm | scaffold | 0.967 | 0.992 | 0.954 |
+| **LR** | **fp_esm** | **held-out target** | **0.776** | **0.924** | **0.890** |
+| **RF** | **fp_esm** | **held-out target** | **0.781** | **0.924** | **0.915** |
+| **LR** | **fp_only** | **held-out target** | **0.783** | **0.914** | **0.897** |
+| **RF** | **fp_only** | **held-out target** | **0.828** | **0.938** | **0.923** |
+| LR | fp_esm | scaffold | 0.860 | 0.957 | 0.918 |
+| RF | fp_esm | scaffold | 0.967 | 0.992 | 0.956 |
 | LR | fp_esm | random | 0.922 | 0.979 | 0.937 |
 | RF | fp_esm | random | 0.982 | 0.995 | 0.971 |
-| LR | desc_only | random | 0.641 | 0.869 | 0.899 |
-| LR | esm_only | random | 0.790 | 0.934 | 0.911 |
 | LR | fp_only | random | 0.906 | 0.974 | 0.931 |
 | RF | fp_only | random | 0.954 | 0.988 | 0.946 |
+| LR | esm_only | random | 0.790 | 0.934 | 0.911 |
+| LR | desc_only | random | 0.641 | 0.869 | 0.899 |
+<!-- results-table-end -->
 
-RF fp_esm models were fit on Colab Pro due to local RAM constraints (estimated 14.9 GB for 300 trees on 365k × 2688 features). All results are evaluated locally on the same test sets.
+RF models were fit on Colab Pro due to local RAM constraints (estimated 14.9 GB for 300 trees on 365k × 2688 features for fp_esm; fp_only also exceeds 8 GB for the held-out target split). All results are evaluated locally on the same test sets.
 
 **Note on AUPRC.** Positive class prevalence is 372,555 / 456,674 ≈ 0.816. A trivial classifier that always predicts positive achieves AUPRC ≈ 0.82. desc_only AUPRC of 0.869 is only 0.053 above that baseline; discriminative signal is marginal. RF fp_esm reaches AUPRC 0.995 (+0.175 above baseline); LR fp_esm reaches 0.979 (+0.159). AUROC is the primary metric; at this positive prevalence, AUPRC should not be compared against balanced-dataset benchmarks from the literature.
 
@@ -98,11 +110,11 @@ The honest numbers are 0.781 (RF) and 0.775 (LR) on the held-out target split. O
 
 The scaffold split drop is different: LR fp_esm loses 0.066 AUROC points from random to scaffold (0.922 to 0.856); RF fp_esm loses only 0.015 (0.982 to 0.967). Fingerprint bit correlations encode binding information a linear model cannot exploit, and those patterns transfer to novel chemical scaffolds. The drug-side generalization test is inherently easier because ATP-competitive kinase inhibitors share pharmacophoric requirements regardless of scaffold; structural novelty on the drug side is less challenging than target novelty on the protein side.
 
-ESM2 mean-pool embeddings carry genuine binding information on their own: esm_only reaches AUROC 0.790, and fp_esm outperforms fp_only by +0.016 (LR) and +0.028 (RF) on the random split. The protein representation adds discriminative signal. Different kinases bind different drug profiles, and ESM2 partially encodes those differences from sequence alone. The gain is real and modest, bounded by two hardware-forced constraints: the 150M model substitution (640-dim vs the 1280-dim 650M model originally intended) and 17.9% sequence truncation for multi-domain kinases where C-terminal domains are discarded before embedding. Whether the 650M model on full sequences would widen the fp_esm margin is unknown.
+ESM2 mean-pool embeddings carry genuine binding information on their own: esm_only reaches AUROC 0.790, and fp_esm outperforms fp_only by +0.016 (LR) and +0.028 (RF) on the random split. On the held-out target split, fp_only outperforms fp_esm: LR 0.783 vs 0.776, RF 0.828 vs 0.781. The protein representation adds discriminative signal within the training distribution; on unseen kinases, it adds noise. Different kinases bind different drug profiles, and ESM2 partially encodes those differences from sequence alone. The random-split margin is bounded by two hardware-forced constraints: the 150M model substitution (640-dim vs the 1280-dim 650M model originally intended) and 17.9% sequence truncation for multi-domain kinases where C-terminal domains are discarded before embedding. Whether the 650M model on full sequences would close the held-out gap is unknown.
 
 The Lipinski descriptor result rules out a shortcut worth ruling out. desc_only AUROC is 0.641, versus 0.906 for fp_only. Bulk drug-likeness properties do not distinguish kinase binders from non-binders. Kinase selectivity is encoded in detailed chemical topology, the specific atomic arrangements that engage the ATP-binding site and hinge region, not in seven numbers derived from bulk molecular properties.
 
-Subfamily performance is consistent across the random-split test set (Fig. 4). No single kinase class drives the aggregate AUROC.
+Subfamily performance on the held-out target split is not uniform (Figure 4). Tyrosine kinases (n=32,794), CDKs (n=2,319), and dual-specificity kinases (n=1,610) all land between 0.84 and 0.87. Ser/Thr kinases (n=13,032) drop to 0.58, near random. The sample size rules out noise as the explanation; this subfamily is genuinely harder to generalize across from sequence alone. The label "serine/threonine kinase" is functional rather than phylogenetic: it catches proteins from five distant kinome branches (AGC, CAMK, CK1, STE, TKL) in the BindingDB target names, not a single coherent family. Their ESM2 embeddings are correspondingly scattered across the kinase embedding space (Fig 2), so a held-out Ser/Thr kinase from any one branch has no training neighbors that share its binding profile.
 
 AUROC values in this table depend on the negative sampling strategy. Affinity-threshold negatives (Ki > 10 μM) are structurally similar to known binders because experimenters disproportionately test compounds they expect to bind; the negative class is not a random draw from chemical space. Performance on a prospective virtual screening task, where true non-binders span all of structural diversity, would likely be lower.
 
@@ -122,7 +134,7 @@ AUROC values in this table depend on the negative sampling strategy. Affinity-th
 | | |
 |:---:|:---:|
 | ![AUROC by subfamily](figures/fig4_auroc_by_subfamily.png) | ![RF feature importance](figures/fig5_rf_feature_importance.png) |
-| **Fig 4.** AUROC by kinase subfamily for the best random-split model (RF fp_esm, AUROC 0.982). Performance is consistent across families. | **Fig 5.** Top 20 Morgan fingerprint bit positions by RF mean decrease in impurity. |
+| **Fig 4.** AUROC by kinase subfamily on the held-out target split (RF fp_esm, aggregate AUROC 0.781, 97 withheld kinases). Bar labels show pair count per subfamily. Ser/Thr kinases (n=13,032) sit near random at 0.58; tyrosine kinases, CDKs, and dual-specificity kinases all generalize above 0.84. | **Fig 5.** Top 20 Morgan fingerprint bit positions by RF mean decrease in impurity. |
 
 ![Split comparison](figures/fig6_split_comparison.png)
 
@@ -142,15 +154,15 @@ AUROC values in this table depend on the negative sampling strategy. Affinity-th
 
 **ESM2 mean-pool EOS handling.** The original pooling implementation excluded the EOS token only for the longest sequence in each batch; shorter sequences included EOS in the mean. For kinase-length sequences (250–900 aa) this is a sub-0.5% contamination per embedding and does not change any reported finding. The implementation has been corrected in `src/embed.py`: EOS is explicitly zeroed for every sequence regardless of batch position. Cached embeddings used for the reported results were computed under the original implementation.
 
+**Sklearn version mismatch.** Fitted models were serialized under scikit-learn 1.6.1 (Colab) and load under 1.8.0 locally with an `InconsistentVersionWarning`. LogisticRegression and RandomForest serialization is stable across this range; reported metrics are unaffected.
+
 ---
 
 ## Connection to project 1
 
-Project 1 (`antibody-sequence-landscape`) asked: does ESM2 encode species-level biological structure in VH antibody sequences? Answer: yes. ESM2 CLS captures inter-species separation (silhouette=0.134), mean-pool degrades it (−0.073, CI excludes zero), and AntiBERTy strongly outperforms (sil=0.310) due to antibody-specific pretraining.
+Project 1 (`antibody-sequence-landscape`): ESM2 CLS captures inter-species separation in VH antibody sequences (silhouette=0.134), mean-pool degrades it (-0.073, CI excludes zero), and AntiBERTy strongly outperforms (sil=0.310) due to antibody-specific pretraining.
 
-This project uses the same embedding method (ESM2 mean-pool), a larger model, and a different protein family to ask a functional rather than structural question: does ESM2 mean-pool encode binding specificity well enough to contribute to drug-target interaction prediction? The evaluation philosophy is the same: report point estimates under honest splits, not just the optimistic number.
-
-ESM2 mean-pool on kinases carries real predictive signal (esm_only AUROC 0.790; fp_esm outperforms fp_only by +0.016 for LR and +0.028 for RF on the random split), but the fingerprint accounts for the majority of it. The held-out target result sharpens the picture: RF gains only +0.006 over LR on unseen kinases (0.781 vs 0.775), despite gaining +0.060 on the random split. Model capacity is not the bottleneck for protein generalization; the representation is.
+On kinases, mean-pool carries real functional signal (esm_only AUROC 0.790) but does not transfer to unseen targets. fp_only outperforms fp_esm on the held-out split for both models: LR 0.783 vs 0.776, RF 0.828 vs 0.781. The pattern is consistent across both projects: general-purpose ESM2 mean-pool encodes useful signal within its training distribution and loses it when the target is novel.
 
 ---
 
@@ -158,6 +170,7 @@ ESM2 mean-pool on kinases carries real predictive signal (esm_only AUROC 0.790; 
 
 ```
 notebook.ipynb              # full analysis: data → features → models → eval → figures
+colab_rf_train.ipynb        # RF and LR models that exceed local RAM; run on Colab, download joblibs
 src/
   data.py                   # BindingDB parse, kinase filter, affinity threshold
   embed.py                  # ESM2 mean-pool; batched; checkpointed; cached
@@ -169,7 +182,7 @@ models/                     # fitted model joblibs  [gitignored — auto-populat
 requirements.txt
 ```
 
-A fresh clone contains source files, committed figures, and an empty `data/` directory ready for the BindingDB TSV. `cache/` and `models/` are created automatically by the notebook on first run.
+A fresh clone contains source files, committed figures, and an empty `data/` directory ready for the BindingDB TSV. `cache/` and `models/` are created automatically by the notebook on first run. Seven model joblibs (`RF_fp_only_random`, `RF_fp_only_target`, `RF_fp_esm_random`, `RF_fp_esm_target`, `RF_fp_esm_scaffold`, `LR_fp_esm_target`, `LR_fp_esm_scaffold`) require more RAM than an 8 GB local machine can provide and must be fit using `colab_rf_train.ipynb`.
 
 ---
 
@@ -182,8 +195,12 @@ conda install -c conda-forge rdkit
 pip install -r requirements.txt
 ```
 
+**Platform.** macOS or Linux required; the data loading step uses the Unix `cut` command.
+
 **Data.** Download `BindingDB_All.tsv.zip` from bindingdb.org and extract directly into the `data/` directory that comes with the clone: `data/BindingDB_All.tsv`. The notebook expects that exact path. The file is ~2 GB compressed, ~10 GB extracted.
 
 **Runtime.** All cells are cached. On first run, expect ~15 minutes for fingerprint computation (222k unique SMILES), ~30 minutes for ESM2 embedding (487 sequences, CPU), and ~10 minutes for the scaffold column (456k rows). Subsequent runs load from cache and complete in under 5 minutes. Hardware: CPU only, 8 GB RAM, Apple Silicon (darwin).
+
+**Colab models.** Seven joblib files are too large to fit locally and are trained separately using `colab_rf_train.ipynb`. Upload `cache/` and `data/` to a `bindscape_cache/` folder in Google Drive, open the notebook in Colab, run all cells, and download the resulting `.joblib` files into `models/`. The main notebook loads them from cache on subsequent runs and will not attempt to re-fit them locally.
 
 **Dependencies:** transformers, torch (CPU), scikit-learn, rdkit, umap-learn, numpy, pandas, matplotlib, seaborn, requests, psutil, joblib. Pin versions from `requirements.txt`.
