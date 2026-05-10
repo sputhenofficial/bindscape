@@ -8,7 +8,7 @@ Can a machine learning model predict whether a small molecule binds a protein ta
 
 Project 1 (`antibody-sequence-landscape`) asked whether ESM2 encodes species-level biological structure in VH antibody sequences. The answer was yes. This project asks the functional follow-up: does ESM2 mean-pool encode binding specificity well enough to contribute to drug-target interaction prediction on kinases?
 
-Mean-pool is used here deliberately, not because it outperformed CLS in project 1 (it did not), but because the question is whether it carries functional signal at all when paired with a 4x larger model. The evaluation philosophy carries over: report point estimates under honest splits, not just the optimistic number.
+Mean-pool is used here deliberately, not because it outperformed CLS in project 1 (it did not), but because the question is whether it carries functional signal at all when paired with a ~19x larger model (8M → 150M parameters). The evaluation philosophy carries over: report point estimates under honest splits, not just the optimistic number.
 
 Project 3 will test whether end-to-end fine-tuning of the encoder can close the held-out target gap that frozen mean-pool cannot(more details out soon).
 
@@ -69,7 +69,7 @@ Final dataset: **456,674 (drug, protein) pairs**, **495 unique human kinase targ
 
 Three train/test splits, all built before any model is fit.
 
-**Split 1 — random (80/10/10).** Pairs are shuffled and split (train 365,338 / val 45,668 / test 45,668). Validation set is used only for classification threshold selection; no hyperparameters are tuned on it. This is the standard benchmark and the optimistic AUROC estimate.
+**Split 1 — random (80/10/10).** Pairs are shuffled and split (train 365,338 / val 45,668 / test 45,668). The random split validation set is used for F1 threshold selection across all three evaluation splits; splits 2 and 3 define no val partition of their own, so the random val set serves as a shared threshold oracle — a conservative but reasonable choice since it is in-distribution relative to the training data regardless of which test split is evaluated; AUROC is the primary cross-split metric because it is threshold-free. This is the standard benchmark and the optimistic AUROC estimate.
 
 **Split 2 — held-out target.** 20% of unique UniProt IDs (97 proteins) are withheld entirely from training (train 364,115 / test 92,559). Tests the realistic deployment scenario: the model must generalize to a kinase with no training measurements. If the model fails here, ESM2 embeddings are not encoding transferable binding specificity.
 
@@ -86,20 +86,20 @@ AUROC (area under the ROC curve) measures whether the model ranks true binders a
 **Fig 6.** LR fp_esm and RF fp_esm AUROC across all three evaluation splits. RF closes the gap on the scaffold split (0.967 vs 0.860) but not on the held-out target split (0.781 vs 0.776), isolating the protein representation as the bottleneck for target generalization.
 
 <!-- results-table-start -->
-| Model | Features | Split | AUROC | AUPRC | F1 |
-|---|---|---|---|---|---|
-| **LR** | **fp_esm** | **held-out target** | **0.776** | **0.924** | **0.890** |
-| **RF** | **fp_esm** | **held-out target** | **0.781** | **0.924** | **0.915** |
-| **LR** | **fp_only** | **held-out target** | **0.783** | **0.914** | **0.897** |
-| **RF** | **fp_only** | **held-out target** | **0.828** | **0.938** | **0.923** |
-| LR | fp_esm | scaffold | 0.860 | 0.957 | 0.918 |
-| RF | fp_esm | scaffold | 0.967 | 0.992 | 0.956 |
-| LR | fp_esm | random | 0.922 | 0.979 | 0.937 |
-| RF | fp_esm | random | 0.982 | 0.995 | 0.971 |
-| LR | fp_only | random | 0.906 | 0.974 | 0.931 |
-| RF | fp_only | random | 0.954 | 0.988 | 0.946 |
-| LR | esm_only | random | 0.790 | 0.934 | 0.911 |
-| LR | desc_only | random | 0.641 | 0.869 | 0.899 |
+| Model | Features | Split | AUROC | 95% CI | AUPRC | F1 |
+|---|---|---|---|---|---|---|
+| **LR** | **fp_esm** | **held-out target** | **0.776** | **[0.772, 0.780]** | **0.924** | **0.890** |
+| **RF** | **fp_esm** | **held-out target** | **0.781** | **[0.777, 0.785]** | **0.924** | **0.915** |
+| **LR** | **fp_only** | **held-out target** | **0.783** | **[0.779, 0.787]** | **0.914** | **0.897** |
+| **RF** | **fp_only** | **held-out target** | **0.828** | **[0.825, 0.832]** | **0.938** | **0.923** |
+| LR | fp_esm | scaffold | 0.860 | [0.856, 0.863] | 0.957 | 0.918 |
+| RF | fp_esm | scaffold | 0.967 | [0.965, 0.968] | 0.992 | 0.956 |
+| LR | fp_esm | random | 0.922 | — | 0.979 | 0.937 |
+| RF | fp_esm | random | 0.982 | — | 0.995 | 0.971 |
+| LR | fp_only | random | 0.906 | — | 0.974 | 0.931 |
+| RF | fp_only | random | 0.954 | — | 0.988 | 0.946 |
+| LR | esm_only | random | 0.790 | — | 0.934 | 0.911 |
+| LR | desc_only | random | 0.641 | — | 0.869 | 0.899 |
 <!-- results-table-end -->
 
 RF models were fit on Colab Pro due to local RAM constraints (estimated 14.9 GB for 300 trees on 365k × 2688 features for fp_esm; fp_only also exceeds 8 GB for the held-out target split). All results are evaluated locally on the same test sets.
@@ -110,11 +110,11 @@ RF models were fit on Colab Pro due to local RAM constraints (estimated 14.9 GB 
 
 ## Interpretation
 
-The honest numbers are 0.781 (RF) and 0.776 (LR) on the held-out target split. On 97 kinase proteins withheld entirely from training, both models drop sharply from their random-split performance; RF gains only +0.006 over LR on this split, despite gaining +0.060 on the random split. Model capacity is not the bottleneck. What fails to transfer is the protein representation itself; the co-occurrence pattern the random split rewards does not generalize to unseen kinases.
+The honest numbers are 0.781 (RF, 95% CI [0.777, 0.785]) and 0.776 (LR, [0.772, 0.780]) on the held-out target split. On 97 kinase proteins withheld entirely from training, both models drop sharply from their random-split performance; RF gains only +0.006 over LR on this split, despite gaining +0.060 on the random split. Model capacity is not the bottleneck. What fails to transfer is the protein representation itself; the co-occurrence pattern the random split rewards does not generalize to unseen kinases.
 
-The scaffold split drop is different: LR fp_esm loses 0.062 AUROC points from random to scaffold (0.922 to 0.860); RF fp_esm loses only 0.015 (0.982 to 0.967). Fingerprint bit correlations encode binding information a linear model cannot exploit, and those patterns transfer to novel chemical scaffolds. The drug-side generalization test is inherently easier because ATP-competitive kinase inhibitors share pharmacophoric requirements regardless of scaffold; structural novelty on the drug side is less challenging than target novelty on the protein side.
+The scaffold split drop is different: LR fp_esm loses 0.062 AUROC points from random to scaffold (0.922 to 0.860 [0.856, 0.863]); RF fp_esm loses only 0.015 (0.982 to 0.967 [0.965, 0.968]). Fingerprint bit correlations encode binding information a linear model cannot exploit, and those patterns transfer to novel chemical scaffolds. The drug-side generalization test is inherently easier because ATP-competitive kinase inhibitors share pharmacophoric requirements regardless of scaffold; structural novelty on the drug side is less challenging than target novelty on the protein side.
 
-ESM2 mean-pool embeddings carry genuine binding information on their own: esm_only reaches AUROC 0.790, and fp_esm outperforms fp_only by +0.016 (LR) and +0.028 (RF) on the random split. On the held-out target split, fp_only outperforms fp_esm: LR 0.783 vs 0.776, RF 0.828 vs 0.781. The protein representation adds discriminative signal within the training distribution; on unseen kinases, it adds noise. Different kinases bind different drug profiles, and ESM2 partially encodes those differences from sequence alone. The random-split margin is bounded by two hardware-forced constraints: the 150M model substitution (640-dim vs the 1280-dim 650M model originally intended) and 17.9% sequence truncation for multi-domain kinases where C-terminal domains are discarded before embedding. Whether the 650M model on full sequences would close the held-out gap is unknown.
+ESM2 mean-pool embeddings carry genuine binding information on their own: esm_only reaches AUROC 0.790, and fp_esm outperforms fp_only by +0.016 (LR) and +0.028 (RF) on the random split. On the held-out target split, fp_only outperforms fp_esm with non-overlapping confidence intervals: LR 0.783 [0.779, 0.787] vs 0.776 [0.772, 0.780], RF 0.828 [0.825, 0.832] vs 0.781 [0.777, 0.785]. The protein representation adds discriminative signal within the training distribution; on unseen kinases, it adds noise. Different kinases bind different drug profiles, and ESM2 partially encodes those differences from sequence alone. The random-split margin is bounded by two hardware-forced constraints: the 150M model substitution (640-dim vs the 1280-dim 650M model originally intended) and 17.9% sequence truncation for multi-domain kinases where C-terminal domains are discarded before embedding. Whether the 650M model on full sequences would close the held-out gap is unknown.
 
 The Lipinski descriptor result rules out a shortcut worth ruling out. desc_only AUROC is 0.641, versus 0.906 for fp_only. Bulk drug-likeness properties do not distinguish kinase binders from non-binders. Kinase selectivity is encoded in detailed chemical topology, the specific atomic arrangements that engage the ATP-binding site and hinge region, not in seven numbers derived from bulk molecular properties.
 
@@ -138,7 +138,7 @@ AUROC values in this table depend on the negative sampling strategy. Affinity-th
 | | |
 |:---:|:---:|
 | ![AUROC by subfamily](figures/fig4_auroc_by_subfamily.png) | ![RF feature importance](figures/fig5_rf_feature_importance.png) |
-| **Fig 4.** AUROC by kinase subfamily on the held-out target split (RF fp_esm, aggregate AUROC 0.781, 97 withheld kinases). Bar labels show pair count per subfamily. Ser/Thr kinases (n=13,032) sit near random at 0.58; tyrosine kinases, CDKs, and dual-specificity kinases all generalize above 0.84. MAP Kinase (Ser/Thr) is listed separately because BindingDB target names use "MAP kinase" or "mitogen" rather than "serine/threonine," causing string-based assignment to split them into their own bar despite being a Ser/Thr kinase subgroup. | **Fig 5.** Top 20 Morgan fingerprint bit positions by RF mean decrease in impurity. |
+| **Fig 4.** AUROC by kinase subfamily on the held-out target split (RF fp_esm, aggregate AUROC 0.781, 97 withheld kinases). Bar labels show pair count per subfamily. Ser/Thr kinases (n=13,032) sit near random at 0.58; tyrosine kinases, CDKs, and dual-specificity kinases all generalize above 0.84. MAP Kinase (Ser/Thr) is listed separately because BindingDB target names use "MAP kinase" or "mitogen" rather than "serine/threonine," causing string-based assignment to split them into their own bar despite being a Ser/Thr kinase subgroup. | **Fig 5.** Top 20 Morgan fingerprint bit positions by RF mean decrease in impurity. Importances are diffuse: the top bit (index 1019, MDI ≈ 0.0066) is 3x more important than bit 20 (MDI ≈ 0.002), consistent with a dataset spanning ATP-competitive hinge binders, type II allosteric inhibitors, and covalent inhibitors across 495 targets; no single substructure defines kinase binding. Individual bit-to-SMARTS mapping is molecule-dependent and is not reported. |
 
 ---
 
