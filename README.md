@@ -8,7 +8,7 @@ Can a machine learning model predict whether a small molecule binds a protein ta
 
 Project 1 (`antibody-sequence-landscape`) asked whether ESM2 encodes species-level biological structure in VH antibody sequences. The answer was yes. This project asks the functional follow-up: does ESM2 mean-pool encode binding specificity well enough to contribute to drug-target interaction prediction on kinases?
 
-Mean-pool is used here deliberately, not because it outperformed CLS in project 1 (it did not), but because the question is whether it carries functional signal at all when paired with a ~19x larger model (8M → 150M parameters). The evaluation philosophy carries over: report point estimates under honest splits, not just the optimistic number.
+Mean-pool is used here deliberately, not because it outperformed CLS in project 1 (CLS reached silhouette 0.134 on inter-species separation; mean-pool degraded it), but because the question is whether it carries functional signal at all when paired with a ~19x larger model (8M → 150M parameters). The evaluation philosophy carries over: report point estimates under honest splits, not just the optimistic number.
 
 Project 3 asks whether fine-tuning the protein encoder end-to-end on the binding task can recover the generalization to unseen kinase targets that frozen pretrained representations cannot.
 
@@ -129,7 +129,7 @@ AUROC values in this table depend on the negative sampling strategy. Affinity-th
 | | |
 |:---:|:---:|
 | ![Chemical space UMAP](figures/fig1_chemical_space_umap.png) | ![Protein embedding UMAP](figures/fig2_protein_umap.png) |
-| **Fig 1.** Chemical space UMAP over Morgan fingerprints, 10k drugs randomly subsampled; binders downsampled to match non-binder count (≈3,680 total); cosine metric. Binders (blue) and non-binders (red) overlap throughout chemical space with no separation. This is consistent with affinity-threshold negative sampling: measured non-binders are drawn from the same ATP-competitive scaffold classes as binders and differ in binding affinity, not gross structural class. | **Fig 2.** ESM2 embedding UMAP over all 487 kinase targets with valid sequences, colored by subfamily. ESM2 partially separates kinase families despite being trained on general protein sequences. |
+| **Fig 1.** Chemical space UMAP over Morgan fingerprints, 10k drugs randomly subsampled; binders downsampled to match non-binder count (≈3,680 total); cosine metric. Binders (blue) and non-binders (red) overlap throughout chemical space with no separation. This is consistent with affinity-threshold negative sampling: measured non-binders are drawn from the same ATP-competitive scaffold classes as binders and differ in binding affinity, not gross structural class. | **Fig 2.** ESM2 embedding UMAP over all 487 kinase targets with valid sequences, colored by subfamily. ESM2 partially separates kinase families despite being trained on general protein sequences. Ser/Thr kinases (brown) scatter rather than cluster. That fragmentation explains the near-random AUROC on held-out Ser/Thr targets in Fig 4. |
 
 ![ROC and PR curves](figures/fig3_roc_pr_curves.png)
 
@@ -144,11 +144,11 @@ AUROC values in this table depend on the negative sampling strategy. Affinity-th
 
 ## Limitations
 
+**Negative sampling.** Affinity-threshold negatives are not a random sample from chemical space. Reported AUROC values are not directly comparable to benchmarks using random or decoy negatives.
+
 **Model size.** The 650M ESM2 model (`esm2_t33_650M_UR50D`) was infeasible on 8 GB CPU. The 150M model (`esm2_t30_150M_UR50D`, 640-dim) was substituted. The fp_esm margin over fp_only (+0.016 LR, +0.028 RF on the random split) may be underestimated; the larger model provides richer representations and might yield a wider gap.
 
 **Sequence truncation.** 87 of 487 kinase sequences with valid embeddings (17.9%) were truncated to 1022 residues before ESM2 embedding, exceeding the 10% flag threshold. Affected proteins are multi-domain kinases where the C-terminal regulatory or kinase domain is partially or fully discarded. Truncation degrades embedding quality for these proteins and may compress the true held-out target AUROC.
-
-**Negative sampling.** Affinity-threshold negatives are not a random sample from chemical space. Reported AUROC values are not directly comparable to benchmarks using random or decoy negatives.
 
 **No hyperparameter tuning.** Logistic regression C=1.0, RF n_estimators=300 are used unchanged. The goal is representation analysis, not maximum AUROC.
 
@@ -191,7 +191,7 @@ pip install -r requirements.txt
 
 **Data.** Download `BindingDB_All.tsv.zip` from bindingdb.org and extract directly into the `data/` directory that comes with the clone: `data/BindingDB_All.tsv`. The notebook expects that exact path. The file is ~2 GB compressed, ~10 GB extracted.
 
-**Runtime.** All cells are cached. On first run, expect ~15 minutes for fingerprint computation (222k unique SMILES), ~30 minutes for ESM2 embedding (487 sequences, CPU), and ~10 minutes for the scaffold column (456k rows). Subsequent runs load from cache and complete in under 5 minutes. Hardware: CPU only, 8 GB RAM, Apple Silicon (darwin).
+**Runtime.** All cells are cached. On first run on 8 GB Apple Silicon CPU, expect ~1 hour for fingerprint computation (222k unique SMILES), ~12–13 hours for ESM2 embedding (487 sequences), and ~45 minutes for the scaffold column (456k rows). Subsequent runs load from cache and complete in under 5 minutes.
 
 **Colab models.** Seven joblib files are too large to fit locally and are trained separately using `colab_rf_train.ipynb`. Upload `cache/` and `data/` to a `bindscape_cache/` folder in Google Drive, open the notebook in Colab, run all cells, and download the resulting `.joblib` files into `models/`. The main notebook loads them from cache on subsequent runs and will not attempt to re-fit them locally.
 
