@@ -10,7 +10,7 @@ Project 1 (`antibody-sequence-landscape`) asked whether ESM2 encodes species-lev
 
 Mean-pool is used here deliberately, not because it outperformed CLS in project 1 (it did not), but because the question is whether it carries functional signal at all when paired with a ~19x larger model (8M → 150M parameters). The evaluation philosophy carries over: report point estimates under honest splits, not just the optimistic number.
 
-Project 3 will test whether end-to-end fine-tuning of the encoder can close the held-out target gap that frozen mean-pool cannot(more details out soon).
+Project 3 asks whether fine-tuning the protein encoder end-to-end on the binding task can recover the generalization to unseen kinase targets that frozen pretrained representations cannot.
 
 ---
 
