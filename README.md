@@ -50,7 +50,7 @@ Final dataset: **456,674 (drug, protein) pairs**, **495 unique human kinase targ
 
 ## Representations
 
-**Drug: Morgan circular fingerprint.** Each unique SMILES is converted to a 2048-bit binary vector using RDKit's Morgan algorithm at radius 2. The fingerprint encodes 2D molecular topology: which substructures are present within 4-bond neighborhoods of each heavy atom, not 3D geometry or conformation. Morgan fingerprints are the standard for bioactivity modeling because they directly capture the atomic arrangements that determine molecular interactions. Bits are binary (0/1) and are not standardized. As a secondary feature set for ablation, seven Lipinski physicochemical descriptors (MW, LogP, HBD, HBA, TPSA, RotBonds, AromaticRings) are also computed; they capture bulk drug-likeness properties rather than chemical topology and serve as a lower-bound baseline.
+**Drug: Morgan circular fingerprint.** Each unique SMILES is converted to a 2048-bit binary vector using RDKit's Morgan algorithm at radius 2 [1]. The fingerprint encodes 2D molecular topology: which substructures are present within 4-bond neighborhoods of each heavy atom, not 3D geometry or conformation. Morgan fingerprints are the standard for bioactivity modeling because they directly capture the atomic arrangements that determine molecular interactions. Bits are binary (0/1) and are not standardized. As a secondary feature set for ablation, seven Lipinski physicochemical descriptors (MW, LogP, HBD, HBA, TPSA, RotBonds, AromaticRings) are also computed; they capture bulk drug-likeness properties rather than chemical topology and serve as a lower-bound baseline.
 
 **Protein: ESM2 mean-pool embedding.** Amino acid sequences for all 495 kinase targets are fetched from UniProt and embedded using `facebook/esm2_t30_150M_UR50D` (640-dim output). ESM2 is a general-purpose protein language model trained on hundreds of millions of sequences across all protein families; it was not trained on kinases or on binding data. The mean-pool vector compresses the per-residue representation into a fixed-size input for classical classifiers, using the same pooling method as project 1 to allow a direct comparison. The 650M parameter model (`esm2_t33_650M_UR50D`) specified in the original design was infeasible on 8 GB CPU; the 150M model was substituted. Mean-pooling averages `last_hidden_state[:, 1:-1, :]` over residue positions, excluding BOS and EOS tokens. Sequences longer than 1022 residues are truncated to the first 1022; 87 of 487 sequences with valid embeddings (17.9%) required truncation. Embeddings are standardized (StandardScaler fit on split-1 training set).
 
@@ -73,7 +73,7 @@ Three train/test splits, all built before any model is fit.
 
 **Split 2 — held-out target.** 20% of unique UniProt IDs (97 proteins) are withheld entirely from training (train 364,115 / test 92,559). Tests the realistic deployment scenario: the model must generalize to a kinase with no training measurements. If the model fails here, ESM2 embeddings are not encoding transferable binding specificity.
 
-**Split 3 — scaffold split.** Drugs are grouped by Murcko scaffold (RDKit). 20% of unique scaffolds (15,278) are withheld from training (train 365,680 / test 90,994). Tests whether Morgan fingerprints memorize known scaffolds or encode features that transfer to novel chemical series.
+**Split 3 — scaffold split.** Drugs are grouped by Murcko scaffold [2]. 20% of unique scaffolds (15,278) are withheld from training (train 365,680 / test 90,994). Tests whether Morgan fingerprints memorize known scaffolds or encode features that transfer to novel chemical series.
 
 ---
 
@@ -202,3 +202,17 @@ pip install -r requirements.txt
 **Colab models.** Seven joblib files are too large to fit locally and are trained separately using `colab_rf_train.ipynb`. Upload `cache/` and `data/` to a `bindscape_cache/` folder in Google Drive, open the notebook in Colab, run all cells, and download the resulting `.joblib` files into `models/`. The main notebook loads them from cache on subsequent runs and will not attempt to re-fit them locally.
 
 **Dependencies:** transformers, torch (CPU), scikit-learn, rdkit, umap-learn, numpy, pandas, matplotlib, seaborn, requests, psutil, joblib. Pin versions from `requirements.txt`.
+
+---
+
+## References
+
+[1] Rogers, D. & Hahn, M. (2010). Extended-connectivity fingerprints. *J. Chem. Inf. Model.* 50(5), 742–754.
+
+[2] Bemis, G. W. & Murcko, M. A. (1996). The properties of known drugs. 1. Molecular frameworks. *J. Med. Chem.* 39(15), 2887–2893.
+
+[3] Lin, Z., Akin, H., Rao, R., et al. (2023). Evolutionary-scale prediction of atomic-level protein structure with a language model. *Science* 379(6637), 1123–1130.
+
+[4] Liu, T., Lin, Y., Wen, X., Jorissen, R. N. & Gilson, M. K. (2007). BindingDB: a web-accessible database of experimentally determined protein–ligand binding affinities. *Nucleic Acids Res.* 35(suppl_1), D198–D201.
+
+[5] McInnes, L., Healy, J. & Melville, J. (2018). UMAP: Uniform manifold approximation and projection for dimension reduction. arXiv:1802.03426.
