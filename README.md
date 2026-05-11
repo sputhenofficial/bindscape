@@ -8,7 +8,7 @@ Can a machine learning model predict whether a small molecule binds a protein ta
 
 Project 1 (`antibody-sequence-landscape`) asked whether ESM2 encodes species-level biological structure in VH antibody sequences. The answer was yes. This project asks the functional follow-up: does ESM2 mean-pool encode binding specificity well enough to contribute to drug-target interaction prediction on kinases?
 
-Mean-pool is used here deliberately, not because it outperformed CLS in project 1 (CLS reached silhouette 0.134 on inter-species separation; mean-pool degraded it), but because the question is whether it carries functional signal at all when paired with a ~19x larger model (8M → 150M parameters). The evaluation philosophy carries over: report point estimates under honest splits, not just the optimistic number.
+Mean-pool is used here deliberately, not because it outperformed CLS in project 1 (CLS reached silhouette 0.134 on inter-species separation; mean-pool degraded it), but because the question is whether it carries functional signal at all when paired with a ~19x larger model (8M → 150M parameters). That advantage was specific to inter-species separation of short VH sequences (~120 residues). For functional prediction over 500+ residue kinase sequences, per-residue averaging captures more domain-level structure than a single task-agnostic token. The evaluation philosophy carries over: report point estimates under honest splits, not just the optimistic number.
 
 Project 3 asks whether fine-tuning the protein encoder end-to-end on the binding task can recover the generalization to unseen kinase targets that frozen pretrained representations cannot.
 
@@ -81,9 +81,9 @@ Three train/test splits, all built before any model is fit.
 
 AUROC (area under the ROC curve) measures whether the model ranks true binders above non-binders: 0.5 is random, 1.0 is perfect.
 
-![LR and RF fp_esm AUROC across evaluation splits](figures/fig6_split_comparison.png)
+![Drug structure alone outperforms drug + protein sequence on unseen kinase targets](figures/fig_hero.png)
 
-**Fig 6.** LR fp_esm and RF fp_esm AUROC across all three evaluation splits. RF closes the gap on the scaffold split (0.967 vs 0.860) but not on the held-out target split (0.781 vs 0.776), isolating the protein representation as the bottleneck for target generalization.
+**Drug structure alone outperforms drug + protein sequence on unseen kinase targets.** Each line tracks AUROC from the optimistic random split (left) to 97 kinase proteins withheld entirely from training (right). Orange lines (drug structure only) finish above blue lines (drug + protein sequence) on the right — the model learns which drugs pair with which specific kinase embeddings in training, and that correlation adds noise rather than signal on proteins it has never seen.
 
 <!-- results-table-start -->
 | Model | Features | Split | AUROC | 95% CI | AUPRC | F1 |
@@ -139,6 +139,10 @@ AUROC values in this table depend on the negative sampling strategy. Affinity-th
 |:---:|:---:|
 | ![AUROC by subfamily](figures/fig4_auroc_by_subfamily.png) | ![RF feature importance](figures/fig5_rf_feature_importance.png) |
 | **Fig 4.** AUROC by kinase subfamily on the held-out target split (RF fp_esm, aggregate AUROC 0.781, 97 withheld kinases). Bar labels show pair count per subfamily. Ser/Thr kinases (n=13,032) sit near random at 0.58; tyrosine kinases, CDKs, and dual-specificity kinases all generalize above 0.84. MAP Kinase (Ser/Thr) is listed separately because BindingDB target names use "MAP kinase" or "mitogen" rather than "serine/threonine," causing string-based assignment to split them into their own bar despite being a Ser/Thr kinase subgroup. | **Fig 5.** Top 20 Morgan fingerprint bit positions by RF mean decrease in impurity. Importances are diffuse: the top bit (index 1019, MDI ≈ 0.0066) is 3x more important than bit 20 (MDI ≈ 0.002), consistent with a dataset spanning ATP-competitive hinge binders, type II allosteric inhibitors, and covalent inhibitors across 495 targets; no single substructure defines kinase binding. Individual bit-to-SMARTS mapping is molecule-dependent and is not reported. |
+
+![AUROC across all three evaluation splits](figures/fig6_split_comparison.png)
+
+**Fig 6.** LR fp_esm and RF fp_esm AUROC across all three evaluation splits. RF closes the gap on the scaffold split (0.967 vs 0.860) but not on the held-out target split (0.781 vs 0.776), isolating the protein representation as the bottleneck for target generalization.
 
 ---
 
