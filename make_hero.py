@@ -108,7 +108,7 @@ for spine in ax.spines.values():
 ax.grid(False)
 
 ax.set_title(
-    'Protein Sequence Improves Drug Binding Prediction, Except on Unseen Targets',
+    'Adding Protein Sequence Embeddings Hurts Drug-Target Binding Prediction on Unseen Kinase Targets',
     fontsize=13, fontweight='bold', pad=8, loc='center'
 )
 ax.text(0.5, 1.008,

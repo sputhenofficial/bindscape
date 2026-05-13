@@ -8,7 +8,7 @@ Can a machine learning model predict whether a small molecule binds a protein ta
 
 Project 1 (`antibody-sequence-landscape`) asked whether ESM2 encodes species-level biological structure in VH antibody sequences. The answer was yes. This project asks the functional follow-up: does ESM2 mean-pool encode binding specificity well enough to contribute to drug-target interaction prediction on kinases?
 
-Mean-pool is used here deliberately, not because it outperformed CLS in project 1 (CLS reached silhouette 0.134 on inter-species separation; mean-pool degraded it), but because the question is whether it carries functional signal at all when paired with a ~19x larger model (8M → 150M parameters). That advantage was specific to inter-species separation of short VH sequences (~120 residues). For functional prediction over 500+ residue kinase sequences, per-residue averaging captures more domain-level structure than a single task-agnostic token.
+Mean-pool is used here deliberately, not because it outperformed CLS in project 1 (CLS reached silhouette 0.134 on inter-species separation; mean-pool degraded it), but because the question is whether it carries functional signal at all when paired with a ~19x larger model (8M → 150M parameters). That advantage was specific to inter-species separation of short VH sequences (~120 residues). For functional prediction over 500+ residue kinase sequences, per-residue averaging captures more domain-level structure than the CLS token alone.
 
 Project 3 asks whether fine-tuning the protein encoder end-to-end on the binding task can recover the generalization to unseen kinase targets that frozen pretrained representations cannot.
 
@@ -112,7 +112,7 @@ RF models were fit on Colab Pro due to local RAM constraints (estimated 14.9 GB 
 
 ## Interpretation
 
-The honest numbers are 0.781 (RF, 95% CI [0.777, 0.785]) and 0.776 (LR, [0.772, 0.780]) on the held-out target split. On 97 kinase proteins withheld entirely from training, both models drop sharply from their random-split performance; RF gains only +0.006 over LR on this split, despite gaining +0.060 on the random split. Model capacity is not the bottleneck. What fails to transfer is the protein representation itself; the co-occurrence pattern the random split rewards does not generalize to unseen kinases.
+The honest numbers are 0.781 (RF, 95% CI [0.777, 0.785]) and 0.776 (LR, [0.772, 0.780]) on the held-out target split. On 97 kinase proteins withheld entirely from training, both models drop sharply from their random-split performance; RF gains only +0.006 over LR on this split, despite gaining +0.060 on the random split. Model capacity is not the bottleneck. What fails to transfer is the protein representation itself; ESM2 encodes kinase structure but not binding specificity that transfers to unseen targets.
 
 The scaffold split drop is different: LR fp_esm loses 0.062 AUROC points from random to scaffold (0.922 to 0.860 [0.856, 0.863]); RF fp_esm loses only 0.015 (0.982 to 0.967 [0.965, 0.968]). Fingerprint bit correlations encode binding information a linear model cannot exploit, and those patterns transfer to novel chemical scaffolds. The drug-side generalization test is inherently easier because ATP-competitive kinase inhibitors share pharmacophoric requirements regardless of scaffold; structural novelty on the drug side is less challenging than target novelty on the protein side.
 
