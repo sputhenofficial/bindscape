@@ -156,6 +156,8 @@ AUROC values in this table depend on the negative sampling strategy. Affinity-th
 
 **Sequence truncation.** 87 of 487 kinase sequences with valid embeddings (17.9%) were truncated to 1022 residues before ESM2 embedding, exceeding the 10% flag threshold. Affected proteins are multi-domain kinases where the C-terminal regulatory or kinase domain is partially or fully discarded. Truncation degrades embedding quality for these proteins and may compress the true held-out target AUROC.
 
+**Drug overlap in held-out target split.** The held-out target split withholds proteins, not drugs. 32.8% of test-set drugs (23,333 of 71,158 unique SMILES) also appear in training paired with other kinases; the remaining 67.2% are novel to the model. The held-out target AUROC primarily reflects new-protein generalization for unseen drugs, with a minor drug-memorization confound for the 32.8% overlap.
+
 **No hyperparameter tuning.** Logistic regression C=1.0, RF n_estimators=300 are used unchanged. The goal is representation analysis, not maximum AUROC.
 
 **ESM2 mean-pool EOS handling.** The original pooling implementation excluded the EOS token only for the longest sequence in each batch; shorter sequences included EOS in the mean. For kinase-length sequences (250–900 aa) this is a sub-0.5% contamination per embedding and does not change any reported finding. The implementation has been corrected in `src/embed.py`: EOS is explicitly zeroed for every sequence regardless of batch position. Cached embeddings used for the reported results were computed under the original implementation.
