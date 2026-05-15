@@ -216,3 +216,9 @@ pip install -r requirements.txt
 [4] Liu, T., Lin, Y., Wen, X., Jorissen, R. N. & Gilson, M. K. (2007). BindingDB: a web-accessible database of experimentally determined protein–ligand binding affinities. *Nucleic Acids Res.* 35(suppl_1), D198–D201.
 
 [5] McInnes, L., Healy, J. & Melville, J. (2018). UMAP: Uniform manifold approximation and projection for dimension reduction. arXiv:1802.03426.
+
+---
+
+## License
+
+Code released under the [MIT License](LICENSE). BindingDB data is subject to its own [terms of use](https://www.bindingdb.org/bind/info.jsp); ESM2 weights are released under the Meta AI Research License.
